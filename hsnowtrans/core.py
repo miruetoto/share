@@ -11,7 +11,7 @@ class GraphSignal:
         self.degree=np.sum(np.array(self.W),0)
         self.initdist=self.degree/np.sum(self.degree) 
         
-class HeavysnowTransform:  
+class Heavysnow:
     def __init__(self,graphsignal):
         self.n=graphsignal.n
         self.f=graphsignal.f
