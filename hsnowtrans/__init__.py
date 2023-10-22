@@ -1,2 +1,2 @@
-from . import core
-from ._plotkit import *
+#from . import core
+from .plotkit import *
