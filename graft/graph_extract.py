@@ -1,3 +1,10 @@
+import graph_tool.all as gt
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import torch
+import matplotlib.cm as cm
+
 def extract_graph_components_uduw(graph):
     """
     Extract important components of a PyTorch Geometric graph. 
@@ -24,7 +31,6 @@ def extract_graph_components_uduw(graph):
     y = torch.tensor(graph.y) if (hasattr(graph, 'y') and graph.y is not None) else None
 
     return links, num_nodes, x, y
-
 
 def extract_graph_components_udw(graph):
     """
