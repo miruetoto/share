@@ -7,6 +7,7 @@ import matplotlib.cm as cm
 
 
 ## 1. 
+
 def _extract_graph_components_uduw(graph):
     """
     Extract important components of a PyTorch Geometric graph. 
