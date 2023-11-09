@@ -36,16 +36,19 @@ def plot_undirected_unweighted(
     # 4. Set nodes.
     vertices, v_text_prop, gt_graph = set_nodes(gt_graph, num_nodes, node_names)
 
-    # 5. Map colors and sizes based on y values.
-    v_color, gt_graph = map_y_to_vertex_color(gt_graph, vertices, node_color)
+    # 5. Map colors and sizes.
+    v_color, gt_graph = map_vertex_color(gt_graph, vertices, node_color)
+    v_size, gt_graph = map_vertex_size(gt_graph, vertices, node_size)
 
     # 6. Add nodes and edges to the graph.
     gt_graph = set_links_uduw(gt_graph,links)
 
     # 7. Set draw_options.
     draw_options.setdefault('output_size', (150 + num_nodes, 150 + num_nodes)) # Set default output size if not provided in draw_options
-    if node_color is not None: 
-        draw_options['vertex_fill_color'] = v_color  # Set the vertex color based on y    
+    if node_color is not None:
+        draw_options['vertex_fill_color'] = v_color  # Set the vertex color based on y
+    if node_size is not None:
+        draw_options['vertex_size'] = v_size  # Set the vertex size based on node_size
 
     # 8. Perform graph layout using sfdf_layout and draw the graph using graph_draw.
     pos = gt.sfdp_layout(gt_graph, **layout_options)
@@ -58,7 +61,7 @@ def plot_undirected_weighted(
         layout_options=None, 
         draw_options=None,
         node_color=None,
-        node_size=False,        
+        node_size=None,        
         edge_weight_text=True,
         edge_weight_width=True,        
         edge_weight_text_format=".2f", 
@@ -90,16 +93,19 @@ def plot_undirected_weighted(
     # 4. Set nodes.
     vertices, v_text_prop, gt_graph = set_nodes(gt_graph, num_nodes, node_names)
 
-    # 5. Map colors and sizes based on y values.
-    v_color, gt_graph = map_y_to_vertex_color(gt_graph, vertices, node_color)
+    # 5. Map colors and sizes.
+    v_color, gt_graph = map_vertex_color(gt_graph, vertices, node_color)
+    v_size, gt_graph = map_vertex_size(gt_graph, vertices, node_size)    
 
     # 6. Set links.
     e_weight, e_pen_width, gt_graph = set_links_udw(gt_graph,vertices,links,weights,edge_weight_text_format,edge_weight_width_scale)
 
     # 7. Set draw_options.
     draw_options.setdefault('output_size', (150 + num_nodes, 150 + num_nodes)) # Set default output size if not provided in draw_options
-    if node_color is not None: 
-        draw_options['vertex_fill_color'] = v_color  # Set the vertex color based on y    
+    if node_color is not None:
+        draw_options['vertex_fill_color'] = v_color  # Set the vertex color based on y
+    if node_size is not None:
+        draw_options['vertex_size'] = v_size  # Set the vertex size based on node_size
     if edge_weight_text: 
         draw_options['edge_text'] = e_weight  # Set edge text property
     if edge_weight_width: 
