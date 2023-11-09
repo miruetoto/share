@@ -5,8 +5,6 @@ import matplotlib as mpl
 import torch
 import matplotlib.cm as cm
 
-
-## 1. 
 def _extract_graph_components_uduw(graph):
     """
     Extract important components of a PyTorch Geometric graph. 
@@ -35,40 +33,8 @@ def _extract_graph_components_uduw(graph):
     return links, num_nodes, x, y
 
 
-def _extract_graph_components_udw(graph):
-    """
-    Extract important components of a PyTorch Geometric graph. 
-    This function is tailored for undirected, weighted graphs.
 
-    Parameters:
-        graph (torch_geometric.data.Data): Input graph in PyTorch Geometric format.
-
-    Returns:
-        links (torch.Tensor): Tensor representing graph edges.
-        num_nodes (int): Number of nodes in the graph.
-        x (torch.Tensor, optional): Node feature matrix.
-        y (torch.Tensor, optional): Node labels or target values.
-    """
-    # Extract unique edges (links)
-    unique_edges_dict = {tuple(e.tolist()): w.item() for e, w in zip(graph.edge_index.sort(axis=0)[0].t(), graph.edge_attr)}
-    links = torch.stack([torch.tensor(k) for k in unique_edges_dict]).t().long()
-
-    # Extract weights 
-    weights = torch.tensor([v for v in unique_edges_dict.values()]).float()
-
-    # Extract number of nodes
-    num_nodes = graph.num_nodes
-
-    # Extract node features (x) and labels/targets (y)
-    x = torch.tensor(graph.x) if (hasattr(graph, 'x') and graph.x is not None) else None
-    y = torch.tensor(graph.y) if (hasattr(graph, 'y') and graph.y is not None) else None
-
-    return links, weights, num_nodes, x, y
-
-
-## 2. 
-
-def _set_nodes(gt_graph, num_nodes, node_names=None):
+def _set_node_names(gt_graph, num_nodes, node_names=None):
     """
     Set node names for a graph_tool graph if provided.
 
@@ -85,10 +51,9 @@ def _set_nodes(gt_graph, num_nodes, node_names=None):
         v_text_prop = gt_graph.new_vertex_property("string")
         for v, name in enumerate(node_names):
             v_text_prop[v] = name
-    vertices = [gt_graph.add_vertex() for _ in range(num_nodes)]            
-    return vertices, v_text_prop, gt_graph
+    return v_text_prop, gt_graph
 
-def _map_y_to_vertex_color(gt_graph, vertices, node_color):
+def _map_y_to_vertex_color(gt_graph, num_nodes, y):
     """
     Map y values to vertex colors for a graph_tool graph.
 
@@ -101,11 +66,10 @@ def _map_y_to_vertex_color(gt_graph, vertices, node_color):
         v_color (graph_tool.VertexPropertyMap): Vertex property map with colors.
     """
 
-    if node_color is None:
+    if y is None:
         return None, gt_graph
-    else: 
-        y = torch.tensor(node_color)
     
+    vertices = [gt_graph.add_vertex() for _ in range(num_nodes)]
     v_color = gt_graph.new_vertex_property("vector<double>")
 
     # Continuous values or too many unique values
@@ -146,31 +110,13 @@ def _map_y_to_vertex_color(gt_graph, vertices, node_color):
 
     return v_color, gt_graph
 
-## 3. links 
-
-def _set_links_uduw(gt_graph,links):
-    gt_graph.add_edge_list(links.t().tolist())
-    return gt_graph
-
-def _set_links_udw(gt_graph,vertices,links,weights,edge_weight_text_format,edge_weight_width_scale):
-    #vertices = {i: gt_graph.add_vertex() for i in range(num_nodes)}
-    e_weight = gt_graph.new_edge_property("string")
-    e_pen_width = gt_graph.new_edge_property("double")
-    for idx, (start, end) in enumerate(links.t().tolist()):
-        e = gt_graph.add_edge(vertices[start], vertices[end])
-        e_weight[e] = format(weights[idx].item(),edge_weight_text_format)
-        e_pen_width[e] = (weights/weights.max())[idx].item() * edge_weight_width_scale
-    return e_weight, e_pen_width, gt_graph
-
-## codes 
-
 def plot_undirected_unweighted(
         graph, 
         node_names=None, 
         layout_options=None, 
         draw_options=None,
-        node_color=None,
-        node_size=None,
+        y_color=False,
+        y_size=False 
     ):
     """
     Visualize an undirected and unweighted graph.
@@ -195,21 +141,21 @@ def plot_undirected_unweighted(
     # 3. Create a graph_tool graph.
     gt_graph = gt.Graph(directed=False)  # Undirected graph
 
-    # 4. Set nodes.
-    vertices, v_text_prop, gt_graph = _set_nodes(gt_graph, num_nodes, node_names)
+    # 4. Set node names.
+    v_text_prop, gt_graph = _set_node_names(gt_graph, num_nodes, node_names)
 
     # 5. Map colors and sizes based on y values.
-    v_color, gt_graph = _map_y_to_vertex_color(gt_graph, vertices, node_color)
+    v_color, gt_graph = _map_y_to_vertex_color(gt_graph, num_nodes, y)
 
     # 6. Add nodes and edges to the graph.
-    gt_graph = _set_links_uduw(gt_graph,links)
+    gt_graph.add_edge_list(links.t().tolist())
 
-    # 7. Set draw_options.
+    # 6. Set draw_options.
     draw_options.setdefault('output_size', (150 + num_nodes, 150 + num_nodes)) # Set default output size if not provided in draw_options
-    if node_color is not None: 
+    if y_color: 
         draw_options['vertex_fill_color'] = v_color  # Set the vertex color based on y    
 
-    # 8. Perform graph layout using sfdf_layout and draw the graph using graph_draw.
+    # 7. Perform graph layout using sfdf_layout and draw the graph using graph_draw.
     pos = gt.sfdp_layout(gt_graph, **layout_options)
     gt.graph_draw(gt_graph, pos=pos, vertex_text=v_text_prop, **draw_options)
 
@@ -219,8 +165,8 @@ def plot_undirected_weighted(
         node_names=None, 
         layout_options=None, 
         draw_options=None,
-        node_color=None,
-        node_size=False,        
+        y_color=False,
+        y_size=False,        
         edge_weight_text=True,
         edge_weight_width=True,        
         edge_weight_text_format=".2f", 
@@ -249,24 +195,66 @@ def plot_undirected_weighted(
     # 3. Create a graph_tool graph.
     gt_graph = gt.Graph(directed=False)  # Undirected graph
 
-    # 4. Set nodes.
-    vertices, v_text_prop, gt_graph = _set_nodes(gt_graph, num_nodes, node_names)
+    # 4. Set node names.
+    v_text_prop, gt_graph = _set_node_names(gt_graph, num_nodes, node_names)
 
     # 5. Map colors and sizes based on y values.
-    v_color, gt_graph = _map_y_to_vertex_color(gt_graph, vertices, node_color)
+    v_color, gt_graph = _map_y_to_vertex_color(gt_graph, num_nodes, y)
 
     # 6. Set links.
-    e_weight, e_pen_width, gt_graph = _set_links_udw(gt_graph,vertices,links,weights,edge_weight_text_format,edge_weight_width_scale)
+    gt_graph = _set_links_udw(gt_graph,links,weights,num_nodes,edge_weight_text_format,edge_weight_width_scale)
 
     # 7. Set draw_options.
     draw_options.setdefault('output_size', (150 + num_nodes, 150 + num_nodes)) # Set default output size if not provided in draw_options
-    if node_color is not None: 
+    if y_color: 
         draw_options['vertex_fill_color'] = v_color  # Set the vertex color based on y    
-    if edge_weight_text: 
-        draw_options['edge_text'] = e_weight  # Set edge text property
-    if edge_weight_width: 
-        draw_options['edge_pen_width'] = e_pen_width  # Use edge weight to adjust edge pen width
 
     # 8. Perform graph layout using sfdf_layout and draw the graph using graph_draw.
     pos = gt.sfdp_layout(gt_graph, **layout_options)
     gt.graph_draw(gt_graph, pos=pos, vertex_text=v_text_prop, **draw_options)
+
+def _set_links_uduw(gt_graph,links):
+    gt_graph.add_edge_list(links.t().tolist())
+    return gt_graph
+
+def _set_links_udw(gt_graph,links,weights,num_nodes,edge_weight_text_format,edge_weight_width_scale):
+    vertices = {i: gt_graph.add_vertex() for i in range(num_nodes)}
+    e_weight = gt_graph.new_edge_property("string")
+    e_pen_width = gt_graph.new_edge_property("double")
+    for idx, (start, end) in enumerate(links.t().tolist()):
+        e = gt_graph.add_edge(vertices[start], vertices[end])
+        e_weight[e] = format(weights[idx].item(),edge_weight_text_format)
+        e_pen_width[e] = (weights/weights.max())[idx].item() * edge_weight_width_scale
+    gt_graph.add_edge_list(links.t().tolist())
+    return gt_graph
+
+
+def _extract_graph_components_udw(graph):
+    """
+    Extract important components of a PyTorch Geometric graph. 
+    This function is tailored for undirected, weighted graphs.
+
+    Parameters:
+        graph (torch_geometric.data.Data): Input graph in PyTorch Geometric format.
+
+    Returns:
+        links (torch.Tensor): Tensor representing graph edges.
+        num_nodes (int): Number of nodes in the graph.
+        x (torch.Tensor, optional): Node feature matrix.
+        y (torch.Tensor, optional): Node labels or target values.
+    """
+    # Extract unique edges (links)
+    unique_edges_dict = {tuple(e.tolist()): w.item() for e, w in zip(graph.edge_index.sort(axis=0)[0].t(), graph.edge_attr)}
+    links = torch.stack([torch.tensor(k) for k in unique_edges_dict]).t().long()
+
+    # Extract weights 
+    weights = torch.tensor([v for v in unique_edges_dict.values()]).float()
+
+    # Extract number of nodes
+    num_nodes = graph.num_nodes
+
+    # Extract node features (x) and labels/targets (y)
+    x = torch.tensor(graph.x) if (hasattr(graph, 'x') and graph.x is not None) else None
+    y = torch.tensor(graph.y) if (hasattr(graph, 'y') and graph.y is not None) else None
+
+    return links, weights, num_nodes, x, y
